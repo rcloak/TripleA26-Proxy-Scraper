@@ -28,7 +28,7 @@ pip install requests
 2. Run the script:
 
 ```
-python scraper.py
+python main.py
 ```
 
 3. Results are saved to `proxies.txt`.
