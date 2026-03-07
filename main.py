@@ -1,46 +1,55 @@
 import requests
 import os
-import threading
-import queue
-def scrape():
-    os.system("cls")
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+MAX_WORKERS = 30
+REQUEST_TIMEOUT = 15
+SESSION = requests.Session()
+
+def fetch_link(link: str) -> str:
+    try:
+        return SESSION.get(link.strip(), timeout=REQUEST_TIMEOUT).text
+    except Exception:
+        return ""
+
+def filter_proxies(raw_lines: list[str]) -> set[str]:
+    # Extract valid IP:PORT entries
+    proxies = set()
+    for line in raw_lines:
+        try:
+            i = line[line.find("/")+1:]
+            i = i[i.find("/")+1:].strip()
+            if 7 < len(i) < 22 and ":" in i:
+                proxies.add(i)
+        except Exception:
+            pass
+    return proxies
+
+def main():
+    os.system("cls" if os.name == "nt" else "clear")
+
     with open("links.txt") as f:
-        for _ in f.readlines():
-            link = _.removesuffix("\n")
-            r = requests.get(link)
-            with open("check.txt", "a+") as temp:
-                try:
-                    temp.write(r.text)
-                    print(r.text)
-                except:
-                    pass
-        print("Scrapped finished, now wait for filter, this will take some minutes. ")
-        with open("check.txt") as f:
-            for i in f.readlines():
-                try:
-                    i = i[i.find("/")+1:]
-                    i = i[i.find("/")+1:]
-                    if len(i) > 7 and len(i) < 22:
-                        if i.__contains__(":"):
-                            with open("proxy.txt", "a+") as proxy:
-                                    proxy.write(i)
-                except:
-                    pass
-            os.system("cls")
-            print("Filter finished, now Checking for duplicate. Remember to check the original code of the duplicate text: https://github.com/Hazza3100/Text-Duplicate-Checker")
-            with open('proxy.txt') as f:
-                content = f.read().split('\n')
-                content = set([line for line in content if line != ''])
-                content = '\n'.join(content)
-                with open('proxies.txt', 'a+') as f:
-                    f.writelines(content)
-threading.Thread(target=scrape).start()
-c = queue.Queue()
-valid = []
+        links = [l.strip() for l in f if l.strip()]
 
+    print(f"Scraping {len(links)} sources using {MAX_WORKERS} threads...")
 
-b = len(open('proxies.txt', 'r').readlines())
-for _ in range(b):
-    threading.Thread(target=check).start()
-os.remove("check.txt")
-os.remove("proxy.txt")
+    raw_lines = []
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
+        futures = {ex.submit(fetch_link, l): l for l in links}
+        for i, fut in enumerate(as_completed(futures), 1):
+            text = fut.result()
+            if text:
+                raw_lines.extend(text.splitlines())
+            print(f"\rProgress: {i}/{len(links)}", end="")
+
+    print("\nFiltering and removing duplicates...")
+    proxies = filter_proxies(raw_lines)
+
+    # Sort for consistent output
+    with open("proxies.txt", "w") as f:
+        f.write("\n".join(sorted(proxies)))
+
+    print(f"Done - {len(proxies)} unique proxies saved to proxies.txt")
+
+if __name__ == "__main__":
+    main()
