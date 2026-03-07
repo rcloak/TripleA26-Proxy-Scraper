@@ -2,7 +2,7 @@
 
 A fast, multi-threaded proxy scraper that collects proxies from multiple public sources, removes duplicates, and saves them to a single file.
 
-> Built because I ran out of paid proxies xd. Free ones it is.
+> Updated it because I ran out of paid proxies xd. Free ones it is.
 
 ## Features
 
